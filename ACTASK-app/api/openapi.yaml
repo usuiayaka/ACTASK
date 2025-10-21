@@ -1,0 +1,118 @@
+openapi: 3.0.3
+info:
+  title: ACTASK API (OpenAPI)
+  version: "0.1"
+  description: |
+    ACTASK の API 定義。main とマウントされた Cranberry のエンドポイントを含む。
+servers:
+  - url: http://localhost:8000
+paths:
+  /status:
+    get:
+      summary: サービスの状態を返す
+      responses:
+        "200":
+          description: 正常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /call-cranberry:
+    get:
+      summary: Cranberry の /info を呼ぶサンプル
+      responses:
+        "200":
+          description: Cranberry 応答
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallCranberryResponse"
+        "500":
+          description: 呼び出し失敗
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cranberry/info:
+    get:
+      summary: Cranberry の情報取得
+      responses:
+        "200":
+          description: Cranberry 情報
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CranberryInfo"
+  /cranberry/ocr:
+    post:
+      summary: 画像から文字を抽出する OCR
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OCR 成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OCRResponse"
+        "400":
+          description: 無効な画像などのクライアントエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: サーバ側 OCR エラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: main
+    CranberryInfo:
+      type: object
+      properties:
+        service:
+          type: string
+          example: cranberry
+        version:
+          type: string
+          example: "0.1"
+    CallCranberryResponse:
+      type: object
+      properties:
+        cranberry_response:
+          $ref: "#/components/schemas/CranberryInfo"
+    OCRResponse:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: image.jpg
+        text:
+          type: string
+          example: ここに認識された文字列が入ります
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
