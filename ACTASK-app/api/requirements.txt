@@ -1,7 +1,9 @@
+
 fastapi
 uvicorn[standard]
 httpx
 python-multipart
 numpy
 opencv-python-headless
-pytesseract
+google-cloud-vision
+Pillow
