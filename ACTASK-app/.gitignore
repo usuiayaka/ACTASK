@@ -1,0 +1,11 @@
+# credentials フォルダを無視
+api/credentials/
+
+# Python 関連の一般的な無視
+__pycache__/
+*.pyc
+*.pyo
+*.env
+
+# VSCode の設定ファイルなど
+.vscode/
