@@ -4,6 +4,8 @@ services:
     container_name: vision-api-app
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/actask-app-a125d7e12c21.json
     volumes:
