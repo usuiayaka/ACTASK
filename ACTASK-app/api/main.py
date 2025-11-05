@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import asyncio
 from datetime import datetime, timedelta
+import re
 
 # Google Calendar
 from googleapiclient.discovery import build
@@ -67,6 +68,36 @@ def add_event_to_calendar(summary: str, start_time: str, end_time: str):
     created_event = calendar_service.events().insert(calendarId='ususirosaika2@gmail.com', body=event).execute()
     return created_event
 
+# === 日時抽出関数 (追加) ===
+def parse_datetime_from_ocr(text: str):
+    """OCRテキストから「年/月/日 時刻〜時刻」のパターンを抽出"""
+    # 例: 2025年11月3日 12:00~13:00
+    pattern = re.compile(
+        r'(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})[~〜-](\d{1,2}):(\d{2})'
+    )
+    match = pattern.search(text)
+
+    if match:
+        year, month, day, start_hour, start_minute, end_hour, end_minute = map(int, match.groups())
+
+        # 開始日時を生成 (ISO 8601形式の文字列)
+        start_dt = datetime(year, month, day, start_hour, start_minute)
+        start_time_str = start_dt.isoformat()
+
+        # 終了日時を生成
+        end_dt = datetime(year, month, day, end_hour, end_minute)
+        end_time_str = end_dt.isoformat()
+
+        # 日付と時刻の文字列を削除し、残りを予定のサマリーとする
+        summary = pattern.sub('', text).strip()
+        
+        return summary, start_time_str, end_time_str
+    
+    # パターンが見つからない場合、デフォルト値（現在時刻から1時間）を返す
+    start = datetime.now()
+    end = start + timedelta(hours=1)
+    return text.strip(), start.isoformat(), end.isoformat()
+
 # === メイン処理 ===
 @app.post("/call-cranberry")
 async def call_cranberry(file: UploadFile = File(...)):
@@ -74,32 +105,66 @@ async def call_cranberry(file: UploadFile = File(...)):
     画像を Cranberry OCR API に転送し、OCR結果をLINEとGoogleカレンダーに登録
     """
     # --- OCR呼び出し ---
+    ocr_text = "テキストが検出されませんでした"
     async with httpx.AsyncClient() as client:
         try:
+            # 実際のファイル転送にはawait file.read()が必要です
             files = {"file": (file.filename, await file.read(), file.content_type)}
+            # 外部OCRサービスのURL（ご自身の環境に合わせてください）
             resp = await client.post("http://127.0.0.1:8000/cranberry/ocr", files=files)
             resp.raise_for_status()
             data = resp.json()
+            ocr_text = data.get("text", "テキストが検出されませんでした")
         except Exception as e:
-            return {"error": "failed to call cranberry", "detail": str(e)}
+            # OCRサービスへの接続/実行失敗
+            return {"error": "failed to call cranberry OCR service", "detail": str(e)}
 
-    # --- OCR結果取得 ---
-    ocr_text = data.get("text", "テキストが検出されませんでした")
+    # --- 日時と予定の抽出 ---
+    # 外部で定義された parse_datetime_from_ocr を呼び出す
+    summary, start_time_str, end_time_str = parse_datetime_from_ocr(ocr_text)
 
-    # --- Googleカレンダー登録（非同期に変換） ---
-    start = datetime.now()
-    end = start + timedelta(hours=1)  # デフォルトで1時間イベント
-    event = await asyncio.to_thread(add_event_to_calendar, ocr_text, start.isoformat(), end.isoformat())
-    print(f"✅ カレンダー登録完了 EventID: {event['id']}")
+    # --- Googleカレンダー登録（非同期に変換し、エラーを捕捉） ---
+    cal_status = "pending"
+    event_id = None
+    
+    # 外部で定義された calendar_service が正しく初期化されているか確認
+    if calendar_service:
+        try:
+            # 同期処理であるadd_event_to_calendarをasyncio.to_threadで別スレッドで実行
+            event = await asyncio.to_thread(
+                add_event_to_calendar, 
+                summary, 
+                start_time_str, 
+                end_time_str
+            )
+            print(f"✅ カレンダー登録完了 Summary: '{summary}', EventID: {event['id']}")
+            cal_status = "done"
+            event_id = event['id']
+        except Exception as e:
+            # APIエラー（権限不足など）や実行時エラー
+            cal_status = "failed"
+            print(f"❌ カレンダー登録失敗: {e}")
+            # エラーが発生したことをクライアントに詳細に返す
+            return {
+                "error": "Calendar registration failed (API/Permission Error)", 
+                "detail": str(e),
+                "ocr_summary": summary,
+                "start_time": start_time_str,
+            }
+    else:
+        # サーバー起動時にカレンダー認証が失敗していた場合
+        cal_status = "skipped (Calendar service not initialized)"
 
     # --- LINE送信（作成されたイベントIDも通知） ---
-    await send_line_message_to_user(
-        f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
-    )
+    # await send_line_message_to_user(
+    #     f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
+    # )
 
     return {
-        "cranberry_response": data,
-        "line_status": "sent",
-        "calendar_status": "done",
-        "event_id": event['id']
+        "cranberry_ocr_text": ocr_text,
+        "parsed_summary": summary,
+        "start_time": start_time_str,
+        "end_time": end_time_str,
+        "calendar_status": cal_status,
+        "event_id": event_id
     }
