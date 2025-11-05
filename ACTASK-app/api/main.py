@@ -35,24 +35,24 @@ credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, sco
 calendar_service = build('calendar', 'v3', credentials=credentials)
 
 # === LINE送信関数 ===
-# async def send_line_message_to_user(message: str):
-#     """LINE公式アカウント（Messaging API）でユーザーにメッセージ送信"""
-#     url = "https://api.line.me/v2/bot/message/push"
-#     headers = {
-#         "Content-Type": "application/json",
-#         "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
-#     }
-#     data = {
-#         "to": LINE_USER_ID,
-#         "messages": [{"type": "text", "text": message}],
-#     }
+async def send_line_message_to_user(message: str):
+    """LINE公式アカウント（Messaging API）でユーザーにメッセージ送信"""
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
+    }
+    data = {
+        "to": LINE_USER_ID,
+        "messages": [{"type": "text", "text": message}],
+    }
 
-#     async with httpx.AsyncClient() as client:
-#         resp = await client.post(url, headers=headers, json=data)
-#         if resp.status_code != 200:
-#             print("❌ LINE送信失敗:", resp.text)
-#         else:
-#             print("✅ LINE送信成功")
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, headers=headers, json=data)
+        if resp.status_code != 200:
+            print("❌ LINE送信失敗:", resp.text)
+        else:
+            print("✅ LINE送信成功")
 
 # === Googleカレンダー登録関数 ===
 def add_event_to_calendar(summary: str, start_time: str, end_time: str):
