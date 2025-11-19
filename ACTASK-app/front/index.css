@@ -14,28 +14,68 @@ h1 {
 .main-container {
   display: flex;
   justify-content: space-between;
+  align-items: stretch;
   gap: 20px;
 }
 
-/* 左側（映像） */
 .video-section {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
 }
 
 .video-section video {
   width: 100%;
-  max-width: 600px;
+  aspect-ratio: 16 / 9;
   border-radius: 10px;
   background: #000;
+  object-fit: cover;
+}
+
+#overlayCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+}
+
+.log-section {
+  width: 35%;
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.log-section h2 {
+  margin-top: 0;
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+#logArea {
+  width: auto;
+  height: 320px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-y: scroll;
 }
 
 .buttons {
   margin-top: 15px;
   display: flex;
   gap: 10px;
+  justify-content: center;
 }
 
 .btn {
@@ -51,27 +91,22 @@ h1 {
 .btn.blue {
   background-color: #3498db;
 }
-
 .btn.red {
   background-color: #e74c3c;
 }
-
 .btn:hover {
   opacity: 0.8;
 }
-
-/* 右側（ログ） */
-.log-section {
-  width: 35%;
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 15px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-}
-
-.log-sect ion h2 {
-  margin-top: 0;
-  text-align: center;
+/* レスポンシブ対応 (lgブレークポイント未満): 縦並びにする */
+@media (max-width: 1024px) {
+  .main-container {
+    flex-direction: column;
+    padding: 0 10px;
+  }
+  .log-section {
+    width: 100%;
+  }
+  body {
+    padding: 10px;
+  }
 }
