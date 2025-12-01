@@ -12,13 +12,15 @@
 
     <div class="main-container max-w-6xl mx-auto">
       <div class="video-section shadow-2xl">
-        <video id="cameraVideo" autoplay muted playsinline></video>
-        <canvas id="overlayCanvas"></canvas>
-        <div
-          id="videoPlaceholder"
-          class="absolute inset-0 flex items-center justify-center text-gray-500 font-semibold text-lg"
-        >
-          カメラを起動してください
+        <div id="videoContainer">
+          <video id="cameraVideo" autoplay muted playsinline></video>
+          <canvas id="overlayCanvas"></canvas>
+          <div
+            id="videoPlaceholder"
+            class="absolute inset-0 flex items-center justify-center text-gray-500 font-semibold text-lg"
+          >
+            カメラを起動してください
+          </div>
         </div>
       </div>
 

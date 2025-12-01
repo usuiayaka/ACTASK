@@ -119,46 +119,46 @@ async def call_cranberry(file: UploadFile = File(...)):
     #         # OCRサービスへの接続/実行失敗
     #         return {"error": "failed to call cranberry OCR service", "detail": str(e)}
 
-    # # --- 日時と予定の抽出 ---
-    # # 外部で定義された parse_datetime_from_ocr を呼び出す
-    # summary, start_time_str, end_time_str = parse_datetime_from_ocr(ocr_text)
+    # --- 日時と予定の抽出 ---
+    # 外部で定義された parse_datetime_from_ocr を呼び出す
+    summary, start_time_str, end_time_str = parse_datetime_from_ocr(ocr_text)
 
-    # # --- Googleカレンダー登録（非同期に変換し、エラーを捕捉） ---
-    # cal_status = "pending"
-    # event_id = None
+    # --- Googleカレンダー登録（非同期に変換し、エラーを捕捉） ---
+    cal_status = "pending"
+    event_id = None
     
-    # # 外部で定義された calendar_service が正しく初期化されているか確認
-    # if calendar_service:
-    #     try:
-    #         # 同期処理であるadd_event_to_calendarをasyncio.to_threadで別スレッドで実行
-    #         event = await asyncio.to_thread(
-    #             add_event_to_calendar, 
-    #             summary, 
-    #             start_time_str, 
-    #             end_time_str
-    #         )
-    #         print(f"✅ カレンダー登録完了 Summary: '{summary}', EventID: {event['id']}")
-    #         cal_status = "done"
-    #         event_id = event['id']
-    #     except Exception as e:
-    #         # APIエラー（権限不足など）や実行時エラー
-    #         cal_status = "failed"
-    #         print(f"❌ カレンダー登録失敗: {e}")
-    #         # エラーが発生したことをクライアントに詳細に返す
-    #         return {
-    #             "error": "Calendar registration failed (API/Permission Error)", 
-    #             "detail": str(e),
-    #             "ocr_summary": summary,
-    #             "start_time": start_time_str,
-    #         }
-    # else:
-    #     # サーバー起動時にカレンダー認証が失敗していた場合
-    #     cal_status = "skipped (Calendar service not initialized)"
+    # 外部で定義された calendar_service が正しく初期化されているか確認
+    if calendar_service:
+        try:
+            # 同期処理であるadd_event_to_calendarをasyncio.to_threadで別スレッドで実行
+            event = await asyncio.to_thread(
+                add_event_to_calendar, 
+                summary, 
+                start_time_str, 
+                end_time_str
+            )
+            print(f"✅ カレンダー登録完了 Summary: '{summary}', EventID: {event['id']}")
+            cal_status = "done"
+            event_id = event['id']
+        except Exception as e:
+            # APIエラー（権限不足など）や実行時エラー
+            cal_status = "failed"
+            print(f"❌ カレンダー登録失敗: {e}")
+            # エラーが発生したことをクライアントに詳細に返す
+            return {
+                "error": "Calendar registration failed (API/Permission Error)", 
+                "detail": str(e),
+                "ocr_summary": summary,
+                "start_time": start_time_str,
+            }
+    else:
+        # サーバー起動時にカレンダー認証が失敗していた場合
+        cal_status = "skipped (Calendar service not initialized)"
 
     # # --- LINE送信（作成されたイベントIDも通知） ---
-    # # await send_line_message_to_user(
-    # #     f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
-    # # )
+    # await send_line_message_to_user(
+    #     f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
+    # )
 
     # return {
     #     "cranberry_ocr_text": ocr_text,

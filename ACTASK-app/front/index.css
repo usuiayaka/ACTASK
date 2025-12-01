@@ -26,21 +26,46 @@ h1 {
   position: relative;
 }
 
-.video-section video {
+/* === ズームとクリッピングを制御するコンテナ === */
+#videoContainer {
+  position: relative;
   width: 100%;
+  /* 映像のアスペクト比に合わせて設定するのが理想。例: 16 / 9 */
   aspect-ratio: 16 / 9;
+  /* ズームによって枠外に出た部分を非表示（クリッピング）にする */
+  overflow: hidden;
   border-radius: 10px;
   background: #000;
-  object-fit: cover;
 }
 
-#overlayCanvas {
+/* === 映像とCanvasをまとめてズームする設定 === */
+#cameraVideo,
+#overlayCanvas,
+#videoPlaceholder {
+  /* 親コンテナ (#videoContainer) の枠内にぴったり収める */
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
+
+  /* 映像と描画をまとめて 1.5倍にズームアップ */
+  transform: scale(1.05);
+  /* 拡大の中心を中央に設定することで、中央部分が表示される */
+  transform-origin: center center;
+}
+
+/* Canvasは最前面に配置し、マウスイベントを透過させる */
+#overlayCanvas {
+  z-index: 2;
   pointer-events: none;
+}
+
+/* videoはCanvasの下に配置 */
+#cameraVideo {
+  z-index: 1;
+  /* ズーム表示時に全体が覆われるように cover を推奨 */
+  object-fit: cover;
 }
 
 .log-section {
@@ -97,6 +122,7 @@ h1 {
 .btn:hover {
   opacity: 0.8;
 }
+
 /* レスポンシブ対応 (lgブレークポイント未満): 縦並びにする */
 @media (max-width: 1024px) {
   .main-container {
