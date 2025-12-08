@@ -2,15 +2,9 @@
 # 目的：GitHub リポジトリの push → Cloud Build が自動実行
 #       → Docker イメージをビルド → Container Registry に保存
 #       → Cloud Run にデプロイ
-#
-# 使用方法：
-#   1. gcloud builds connect コマンドで GitHub を接続
-#   2. gcloud builds triggers create github コマンドでトリガーを作成
-#   3. リポジトリへの push で自動実行
 
 steps:
   # ステップ1: Docker イメージをビルド
-  # イメージ名: gcr.io/{PROJECT_ID}/actask-unified
   - name: "gcr.io/cloud-builders/docker"
     id: build_image
     args:
@@ -29,12 +23,10 @@ steps:
     id: push_image
     args:
       - "push"
-      - "gcr.io/$PROJECT_ID/actask-unified"
+      - "gcr.io/$PROJECT_ID/actask-unified:$COMMIT_SHA" # COMMIT_SHAタグでプッシュを推奨
     waitFor: ["build_image"]
 
   # ステップ3: Cloud Run にデプロイ
-  # 注: gke-deploy は Cloud Run へのデプロイには非推奨または不適切です。
-  #     gcloud コマンドを使用します。
   - name: "gcr.io/cloud-builders/gcloud"
     id: deploy_cloudrun
     args:
@@ -44,8 +36,6 @@ steps:
       - "--image=gcr.io/$PROJECT_ID/actask-unified:$COMMIT_SHA"
       - "--region=us-central1"
       - "--platform=managed"
-      # cloud-run-config.yamlで設定ファイルを指定する場合は以下を使用
-      # - "--config-file=./ACTASK-app/cloud-run-config.yaml"
     waitFor: ["push_image"]
 
 # ビルド後の成果物（推奨）
@@ -56,9 +46,12 @@ images:
 # タイムアウト（デフォルト: 10分）
 timeout: "1800s"
 
-# ★★★ 削除しました ★★★
-# onFailure:
-#   - "NOTIFY_FAILURE"
+# ★★★ 修正箇所: ロギング設定を追加 ★★★
+options:
+  # カスタムサービスアカウント使用時の必須設定
+  # ログを Cloud Logging にのみ保存するように指定します
+  logging: CLOUD_LOGGING_ONLY
+# ★★★ ------------------------------ ★★★
 
 substitutions:
   _REGION: "us-central1"
