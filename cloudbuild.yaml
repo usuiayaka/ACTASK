@@ -33,15 +33,19 @@ steps:
     waitFor: ["build_image"]
 
   # ステップ3: Cloud Run にデプロイ
-  - name: "gcr.io/cloud-builders/gke-deploy"
+  # 注: gke-deploy は Cloud Run へのデプロイには非推奨または不適切です。
+  #     gcloud コマンドを使用します。
+  - name: "gcr.io/cloud-builders/gcloud"
     id: deploy_cloudrun
-    env:
-      - "CLOUDSDK_COMPUTE_REGION=us-central1"
     args:
       - "run"
-      - "--filename=./ACTASK-app/cloud-run-config.yaml"
+      - "deploy"
+      - "actask-service" # サービス名を明示的に指定
       - "--image=gcr.io/$PROJECT_ID/actask-unified:$COMMIT_SHA"
-      - "--location=us-central1"
+      - "--region=us-central1"
+      - "--platform=managed"
+      # cloud-run-config.yamlで設定ファイルを指定する場合は以下を使用
+      # - "--config-file=./ACTASK-app/cloud-run-config.yaml"
     waitFor: ["push_image"]
 
 # ビルド後の成果物（推奨）
@@ -52,9 +56,9 @@ images:
 # タイムアウト（デフォルト: 10分）
 timeout: "1800s"
 
-# ビルド開始時の通知
-onFailure:
-  - "NOTIFY_FAILURE"
+# ★★★ 削除しました ★★★
+# onFailure:
+#   - "NOTIFY_FAILURE"
 
 substitutions:
   _REGION: "us-central1"
