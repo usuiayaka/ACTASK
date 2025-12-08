@@ -44,5 +44,5 @@ EXPOSE 8000
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/actask-app-a125d7e12c21.json
 
 # === サーバー起動 ===
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
 
