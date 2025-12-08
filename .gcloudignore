@@ -1,0 +1,40 @@
+# Cloud Build が無視するファイル・ディレクトリ
+
+# 開発環境
+.env
+.venv
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Docker
+.dockerignore
+docker-compose.yml
+Dockerfile.dev
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# git
+.git/
+.gitignore
+.github/
+
+# テスト・ログ
+*.log
+test/
+tests/
+.coverage
+
+# その他
+*.egg-info/
+dist/
+build/
+.node_modules/
+node_modules/

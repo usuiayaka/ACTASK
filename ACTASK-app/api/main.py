@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.staticfiles import StaticFiles
 import httpx
 from cranberry import router as cranberry_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,7 @@ import os
 import asyncio
 from datetime import datetime, timedelta
 import re
+from pathlib import Path
 
 # Google Calendar
 from googleapiclient.discovery import build
@@ -26,6 +28,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# === 静的ファイルの提供（フロント） ===
+# フロント側ファイルがある場合、/static ルートまたはルートから提供
+static_dir = Path(__file__).parent.parent / "front"
+if static_dir.exists():
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+else:
+    print(f"⚠️ Warning: Static directory not found at {static_dir}")
 
 # Cranberry OCR用ルーターを追加
 app.include_router(cranberry_router, prefix="/cranberry")

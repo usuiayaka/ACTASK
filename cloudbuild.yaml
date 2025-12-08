@@ -1,0 +1,61 @@
+# Cloud Build 設定ファイル
+# 目的：GitHub リポジトリの push → Cloud Build が自動実行
+#       → Docker イメージをビルド → Container Registry に保存
+#       → Cloud Run にデプロイ
+#
+# 使用方法：
+#   1. gcloud builds connect コマンドで GitHub を接続
+#   2. gcloud builds triggers create github コマンドでトリガーを作成
+#   3. リポジトリへの push で自動実行
+
+steps:
+  # ステップ1: Docker イメージをビルド
+  # イメージ名: gcr.io/{PROJECT_ID}/actask-unified
+  - name: "gcr.io/cloud-builders/docker"
+    id: build_image
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/actask-unified:latest"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/actask-unified:$COMMIT_SHA"
+      - "-f"
+      - "./ACTASK-app/Dockerfile"
+      - "./ACTASK-app"
+    waitFor: ["-"]
+
+  # ステップ2: イメージを Container Registry にプッシュ
+  - name: "gcr.io/cloud-builders/docker"
+    id: push_image
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/actask-unified"
+    waitFor: ["build_image"]
+
+  # ステップ3: Cloud Run にデプロイ
+  - name: "gcr.io/cloud-builders/gke-deploy"
+    id: deploy_cloudrun
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=us-central1"
+    args:
+      - "run"
+      - "--filename=./ACTASK-app/cloud-run-config.yaml"
+      - "--image=gcr.io/$PROJECT_ID/actask-unified:$COMMIT_SHA"
+      - "--location=us-central1"
+    waitFor: ["push_image"]
+
+# ビルド後の成果物（推奨）
+images:
+  - "gcr.io/$PROJECT_ID/actask-unified:latest"
+  - "gcr.io/$PROJECT_ID/actask-unified:$COMMIT_SHA"
+
+# タイムアウト（デフォルト: 10分）
+timeout: "1800s"
+
+# ビルド開始時の通知
+onFailure:
+  - "NOTIFY_FAILURE"
+
+substitutions:
+  _REGION: "us-central1"
+  _SERVICE_NAME: "ACTASK"

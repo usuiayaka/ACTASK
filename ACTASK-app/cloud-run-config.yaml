@@ -1,0 +1,53 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: actask-unified
+  namespace: default
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/minScale: "1"
+    spec:
+      serviceAccountName: default
+      containers:
+        - image: IMAGE_URL # Cloud Build が置き換える
+          ports:
+            - containerPort: 8000
+          env:
+            # GCP 認証情報（環境変数で提供）
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /app/credentials/actask-app-a125d7e12c21.json
+            # その他の環境変数が必要な場合ここに追加
+            - name: LINE_CHANNEL_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: line-secrets
+                  key: channel-access-token
+                  optional: true
+            - name: LINE_USER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: line-secrets
+                  key: user-id
+                  optional: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "1"
+            limits:
+              memory: "1Gi"
+              cpu: "2"
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5

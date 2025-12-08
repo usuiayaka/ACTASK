@@ -1,0 +1,32 @@
+# 統一 docker-compose.yml
+# 目的：ACTASK-app/ の統一 Dockerfile を使用してローカルテスト
+
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: ./ACTASK-app
+      dockerfile: Dockerfile
+    container_name: actask-unified
+    ports:
+      - "8000:8000"
+    environment:
+      # GCP 認証
+      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/actask-app-a125d7e12c21.json
+      # その他環境変数（必要に応じて）
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
+      LINE_USER_ID: ${LINE_USER_ID:-}
+    volumes:
+      # 開発時のみ: コード変更をリアルタイムに反映
+      - ./ACTASK-app/api:/app
+      - ./ACTASK-app/front:/app/front
+      # credentials フォルダをマウント（読み取り専用）
+      - ./ACTASK-app/credentials:/app/credentials:ro
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - actask-net
+
+networks:
+  actask-net:
+    driver: bridge
