@@ -19,7 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # === バックエンドコード ===
 COPY ./api/main.py .
 COPY ./api/cranberry.py .
-COPY ./api/credentials ./credentials
+
+# === credentials フォルダ（Cloud Run/ローカルで環境変数で指定） ===
+# NOTE: credentials は .gcloudignore で除外されているため、
+#       ビルド時にはコピーしない。
+#       - Cloud Run: Secret Manager から /app/credentials に注入
+#       - ローカル: docker-compose.yml でボリュームマウント
 
 # === フロントエンド（静的ファイル）===
 # フロント側の static ファイルをコンテナ内の front/ ディレクトリにコピー
@@ -34,6 +39,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 8000
 
 # === デフォルト環境変数 ===
+# Cloud Run では Secret Manager から /app/credentials/xxxxx.json がマウントされる
+# ローカル開発では docker-compose.yml でボリュームマウント
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/actask-app-a125d7e12c21.json
 
 # === サーバー起動 ===

@@ -32,6 +32,11 @@ spec:
                   name: line-secrets
                   key: user-id
                   optional: true
+          # === GCP Credentials JSON をシークレットからマウント ===
+          volumeMounts:
+            - name: gcp-credentials
+              mountPath: /app/credentials
+              readOnly: true
           resources:
             requests:
               memory: "512Mi"
@@ -51,3 +56,11 @@ spec:
               port: 8000
             initialDelaySeconds: 5
             periodSeconds: 5
+      # === シークレットボリュームをマウント ===
+      volumes:
+        - name: gcp-credentials
+          secret:
+            secretName: gcp-credentials-json
+            items:
+              - key: credentials
+                path: actask-app-a125d7e12c21.json

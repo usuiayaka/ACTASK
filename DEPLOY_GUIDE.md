@@ -73,6 +73,27 @@ gcloud builds triggers create github \
   --name="actask-unified-deploy"
 ```
 
+### 4. GCP Secret Manager でシークレット登録（重要）
+
+GCP 認証情報（サービスアカウント JSON）を Secret Manager に登録：
+
+```bash
+# Secret Manager の API を有効化
+gcloud services enable secretmanager.googleapis.com
+
+# Secret を作成（GCP サービスアカウント JSON ファイルの内容を使用）
+gcloud secrets create gcp-credentials-json \
+  --data-file=./ACTASK-app/api/credentials/actask-app-a125d7e12c21.json
+
+# Cloud Run のサービスアカウントに Secret へのアクセス権限を付与
+gcloud secrets add-iam-policy-binding gcp-credentials-json \
+  --member=serviceAccount:$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')-compute@developer.gserviceaccount.com \
+  --role=roles/secretmanager.secretAccessor
+```
+
+**注意**: credentials ファイルは `.gcloudignore` で除外されているため、ビルド時に含まれません。  
+代わりに Secret Manager から Cloud Run にマウントされます。
+
 ## デプロイ手順
 
 ### オプション A: Cloud Build で自動デプロイ（推奨）
