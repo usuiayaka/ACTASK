@@ -13,10 +13,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # API側のファイルをコピー
-COPY . .
+COPY api/ /app/
 
 # フロント側のファイルを static ディレクトリにコピー
-COPY ../front /app/static
+COPY front/ /app/static/
 
 # ポート設定（Cloud Run の要件）
 ENV PORT=8080
