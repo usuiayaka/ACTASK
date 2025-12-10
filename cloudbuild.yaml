@@ -1,0 +1,49 @@
+steps:
+  # ビルドステップ：Dockerfile を使用してイメージをビルド
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:latest"
+      - "-f"
+      - "ACTASK-app/api/Dockerfile"
+      - "ACTASK-app"
+    id: "build-image"
+
+  # プッシュステップ：ビルドしたイメージをContainer Registry にプッシュ
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+    id: "push-image"
+
+  # デプロイステップ：Cloud Run にデプロイ
+  - name: "gcr.io/cloud-builders/run"
+    args:
+      - "deploy"
+      - "$_SERVICE_NAME"
+      - "--image=gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+      - "--region=$_REGION"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--set-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/actask-app-40b0576cfbd3.json"
+    id: "deploy-cloud-run"
+    waitFor: ["push-image"]
+
+# イメージ情報
+images:
+  - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+  - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:latest"
+
+# ビルド設定
+options:
+  machineType: "N1_HIGHCPU_8"
+
+substitutions:
+  _SERVICE_NAME: "actask-app"
+  _REGION: "asia-northeast1"
+
+# タイムアウト設定
+timeout: "1800s"
