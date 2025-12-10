@@ -32,8 +32,10 @@ COPY ./api/cranberry.py .
 COPY ./front ./front
 
 # === ヘルスチェック ===
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/status')"
+# ヘルスチェックではコンテナ内の環境変数 PORT を参照して /status を叩く
+# Docker の HEALTHCHECK はシェルが使えるため、python 内で環境変数を参照する方式にします
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
+    CMD python -c "import os, urllib.request; port=os.environ.get('PORT','8080'); urllib.request.urlopen(f'http://localhost:{port}/status')" || exit 1
 
 # === ポート公開 ===
 EXPOSE 8000
@@ -44,5 +46,7 @@ EXPOSE 8000
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/actask-app-a125d7e12c21.json
 
 # === サーバー起動 ===
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
+# Cloud Run は実行時に環境変数 PORT をセットします。exec 形式だとシェル展開されない
+# ため sh -c を使って展開するか、エントリポイントスクリプトを使います。ここでは sh -c を使用します。
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
 

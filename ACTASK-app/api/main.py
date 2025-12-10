@@ -40,6 +40,16 @@ else:
 # Cranberry OCR用ルーターを追加
 app.include_router(cranberry_router, prefix="/cranberry")
 
+# === ヘルスチェックエンドポイント（Cloud Run のリバイアス用） ===
+@app.get("/status")
+async def health_check():
+    """ヘルスチェック用エンドポイント - Cloud Run のリバイアスと readinessProbe 用"""
+    return {
+        "status": "healthy",
+        "service": "ACTASK Main API",
+        "calendar_ready": calendar_service is not None
+    }
+
 # === Googleカレンダーサービス作成 ===
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 calendar_service = None
