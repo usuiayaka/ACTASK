@@ -14,5 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Uvicorn を使って main.app を起動。--reload は開発時のみ使う。
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Cloud Run は PORT 環境変数を設定する。デフォルト 8080
+ENV PORT=8080
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT}

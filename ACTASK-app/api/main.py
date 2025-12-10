@@ -42,8 +42,18 @@ app.include_router(cranberry_router, prefix="/cranberry")
 
 # === Googleカレンダーサービス作成 ===
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, scopes=SCOPES)
-calendar_service = build('calendar', 'v3', credentials=credentials)
+calendar_service = None
+
+if GOOGLE_CREDENTIALS_FILE and os.path.exists(GOOGLE_CREDENTIALS_FILE):
+    try:
+        credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, scopes=SCOPES)
+        calendar_service = build('calendar', 'v3', credentials=credentials)
+        print("✅ Google Calendar service initialized")
+    except Exception as e:
+        print(f"⚠️ Failed to initialize Google Calendar: {e}")
+        calendar_service = None
+else:
+    print(f"⚠️ GOOGLE_CREDENTIALS_FILE not set or file not found: {GOOGLE_CREDENTIALS_FILE}")
 
 # === LINE送信関数 ===
 # async def send_line_message_to_user(message: str):
