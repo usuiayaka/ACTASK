@@ -10,7 +10,9 @@ steps:
       - "-f"
       - "api/Dockerfile"
       - "."
-    id: "build-image" # プッシュステップ：ビルドしたイメージをContainer Registry にプッシュ
+    id: "build-image"
+
+  # プッシュステップ：ビルドしたイメージをContainer Registry にプッシュ
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "push"
