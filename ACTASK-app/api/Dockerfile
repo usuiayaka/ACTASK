@@ -12,7 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# API側のファイルをコピー
 COPY . .
 
-# Uvicorn を使って main.app を起動。--reload は開発時のみ使う。
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# フロント側のファイルを static ディレクトリにコピー
+COPY ../front /app/static
+
+# ポート設定（Cloud Run の要件）
+ENV PORT=8080
+EXPOSE 8080
+
+# Uvicorn を使って main.app を起動
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

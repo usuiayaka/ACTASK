@@ -1,5 +1,5 @@
-const API_URL = "http://127.0.0.1:8000/call-cranberry";
-const COORDS_API_URL = "http://127.0.0.1:8000/cranberry/mask_coords"; // 追加: 座標取得API
+const API_URL = "/api/call-cranberry";
+const COORDS_API_URL = "/api/cranberry/mask_coords"; // 追加: 座標取得API
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const video = document.getElementById("cameraVideo");

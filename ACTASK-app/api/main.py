@@ -2,10 +2,13 @@ from fastapi import FastAPI, UploadFile, File
 import httpx
 from cranberry import router as cranberry_router
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 import asyncio
 from datetime import datetime, timedelta
 import re
+from pathlib import Path
 
 # Google Calendar
 from googleapiclient.discovery import build
@@ -27,8 +30,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cranberry OCR用ルーターを追加
-app.include_router(cranberry_router, prefix="/cranberry")
+# Cranberry OCR用ルーターを追加（/api プレフィックス付き）
+app.include_router(cranberry_router, prefix="/api/cranberry")
+
+# === 静的ファイルの配信設定 ===
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# === ルートエンドポイント（フロント index.html を返す） ===
+@app.get("/")
+async def root():
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return {"message": "ACTASK API Server is running"}
 
 # === Googleカレンダーサービス作成 ===
 SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -99,7 +115,7 @@ def parse_datetime_from_ocr(text: str):
     return text.strip(), start.isoformat(), end.isoformat()
 
 # === メイン処理 ===
-@app.post("/call-cranberry")
+@app.post("/api/call-cranberry")
 async def call_cranberry(file: UploadFile = File(...)):
     """
     画像を Cranberry OCR API に転送し、OCR結果をLINEとGoogleカレンダーに登録

@@ -1,0 +1,43 @@
+steps:
+  # ビルドステップ：Dockerfile を使用してイメージをビルド
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:latest"
+      - "-f"
+      - "ACTASK-app/api/Dockerfile"
+      - "ACTASK-app"
+
+  # プッシュステップ：ビルドしたイメージをContainer Registry にプッシュ
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+
+  # デプロイステップ：Cloud Run にデプロイ
+  - name: "gcr.io/cloud-builders/gke-deploy"
+    args:
+      - "run"
+      - "--filename="
+      - "--image=gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+      - "--location=us-central1"
+      - "--cluster=$_CLUSTER_NAME"
+
+# イメージ情報
+images:
+  - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
+  - "gcr.io/$PROJECT_ID/$_SERVICE_NAME:latest"
+
+# ビルド設定
+options:
+  machineType: "N1_HIGHCPU_8"
+
+substitutions:
+  _SERVICE_NAME: "actask-app"
+  _CLUSTER_NAME: "actask-cluster"
+
+# タイムアウト設定
+timeout: "1800s"
