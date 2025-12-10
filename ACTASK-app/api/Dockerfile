@@ -9,10 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 # API側のファイルをコピー
+COPY api/requirements.txt /app/
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# API側のコードをコピー
 COPY api/ /app/
 
 # フロント側のファイルを static ディレクトリにコピー
