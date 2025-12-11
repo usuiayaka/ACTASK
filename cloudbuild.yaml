@@ -20,17 +20,21 @@ steps:
     id: "push-image"
 
   # デプロイステップ：Cloud Run にデプロイ
-  - name: "gcr.io/cloud-builders/run"
+  - name: "gcr.io/cloud-builders/gcloud"
     args:
+      - "run"
       - "deploy"
       - "$_SERVICE_NAME"
       - "--image=gcr.io/$PROJECT_ID/$_SERVICE_NAME:$SHORT_SHA"
       - "--region=$_REGION"
       - "--platform=managed"
       - "--allow-unauthenticated"
-      - "--set-env-vars=GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/actask-app-40b0576cfbd3.json"
+      - "--timeout=3600"
+      - "--memory=512Mi"
+      - "--cpu=1"
     id: "deploy-cloud-run"
     waitFor: ["push-image"]
+    timeout: "900s"
 
 # イメージ情報
 images:
@@ -41,10 +45,11 @@ images:
 options:
   machineType: "N1_HIGHCPU_8"
   logging: CLOUD_LOGGING_ONLY
+  substitutionOption: "ALLOW_LOOSE"
 
 substitutions:
   _SERVICE_NAME: "actask-app"
   _REGION: "asia-northeast1"
 
 # タイムアウト設定
-timeout: "1800s"
+timeout: "3000s"
