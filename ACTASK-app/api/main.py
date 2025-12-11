@@ -48,8 +48,17 @@ async def root():
 
 # === Googleカレンダーサービス作成 ===
 SCOPES = ['https://www.googleapis.com/auth/calendar']
-credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, scopes=SCOPES)
-calendar_service = build('calendar', 'v3', credentials=credentials)
+calendar_service = None
+
+try:
+    if GOOGLE_CREDENTIALS_FILE and os.path.exists(GOOGLE_CREDENTIALS_FILE):
+        credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, scopes=SCOPES)
+        calendar_service = build('calendar', 'v3', credentials=credentials)
+    else:
+        print("⚠️ Google Calendar credentials file not found or not configured")
+except Exception as e:
+    print(f"⚠️ Failed to initialize Google Calendar service: {e}")
+    calendar_service = None
 
 # === LINE送信関数 ===
 # async def send_line_message_to_user(message: str):

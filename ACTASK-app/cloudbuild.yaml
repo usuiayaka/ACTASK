@@ -34,9 +34,11 @@ steps:
       - "--allow-unauthenticated"
       - "--timeout=3600"
       - "--memory=512Mi"
+      - "--cpu=1"
+      - "--set-env-vars=PORT=8080"
     id: "deploy-cloud-run"
     waitFor: ["push-image"]
-    timeout: "600s"
+    timeout: "900s"
 
 # イメージ情報
 images:
@@ -47,10 +49,11 @@ images:
 options:
   machineType: "N1_HIGHCPU_8"
   logging: CLOUD_LOGGING_ONLY
+  substitutionOption: "ALLOW_LOOSE"
 
 substitutions:
   _SERVICE_NAME: "actask-app"
   _REGION: "asia-northeast1"
 
 # タイムアウト設定
-timeout: "2400s"
+timeout: "3000s"
