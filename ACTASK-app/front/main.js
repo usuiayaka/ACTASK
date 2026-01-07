@@ -1,3 +1,5 @@
+// === API エンドポイント（環境別） ===
+// ローカル・Cloud Run 両方で機能するように相対パスを使用
 const API_URL = "/api/call-cranberry";
 const COORDS_API_URL = "/api/cranberry/mask_coords"; // 追加: 座標取得API
 const startBtn = document.getElementById("startBtn");

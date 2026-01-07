@@ -19,6 +19,12 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # Dockerマウント済みJSON
 
+# === API ベース URL（環境別） ===
+# ローカル（docker-compose）: http://127.0.0.1:8000
+# Cloud Run: https://actask-app-xxx.asia-northeast1.run.app（自動で正しい origin を使用）
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")  # デフォルトはローカル
+print(f"📡 API ベース URL: {API_BASE_URL}")
+
 # === FastAPI設定 ===
 app = FastAPI(title="ACTASK Main API")
 
@@ -61,24 +67,24 @@ except Exception as e:
     calendar_service = None
 
 # === LINE送信関数 ===
-# async def send_line_message_to_user(message: str):
-#     """LINE公式アカウント（Messaging API）でユーザーにメッセージ送信"""
-#     url = "https://api.line.me/v2/bot/message/push"
-#     headers = {
-#         "Content-Type": "application/json",
-#         "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
-#     }
-#     data = {
-#         "to": LINE_USER_ID,
-#         "messages": [{"type": "text", "text": message}],
-#     }
+async def send_line_message_to_user(message: str):
+    """LINE公式アカウント（Messaging API）でユーザーにメッセージ送信"""
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
+    }
+    data = {
+        "to": LINE_USER_ID,
+        "messages": [{"type": "text", "text": message}],
+    }
 
-#     async with httpx.AsyncClient() as client:
-#         resp = await client.post(url, headers=headers, json=data)
-#         if resp.status_code != 200:
-#             print("❌ LINE送信失敗:", resp.text)
-#         else:
-#             print("✅ LINE送信成功")
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, headers=headers, json=data)
+        if resp.status_code != 200:
+            print("❌ LINE送信失敗:", resp.text)
+        else:
+            print("✅ LINE送信成功")
 
 # === Googleカレンダー登録関数 ===
 def add_event_to_calendar(summary: str, start_time: str, end_time: str):
@@ -130,19 +136,23 @@ async def call_cranberry(file: UploadFile = File(...)):
     画像を Cranberry OCR API に転送し、OCR結果をLINEとGoogleカレンダーに登録
     """
     # --- OCR呼び出し ---
-    # ocr_text = "テキストが検出されませんでした"
-    # async with httpx.AsyncClient() as client:
-    #     try:
-    #         # 実際のファイル転送にはawait file.read()が必要です
-    #         files = {"file": (file.filename, await file.read(), file.content_type)}
-    #         # 外部OCRサービスのURL（ご自身の環境に合わせてください）
-    #         resp = await client.post("http://127.0.0.1:8000/cranberry/ocr", files=files)
-    #         resp.raise_for_status()
-    #         data = resp.json()
-    #         ocr_text = data.get("text", "テキストが検出されませんでした")
-    #     except Exception as e:
-    #         # OCRサービスへの接続/実行失敗
-    #         return {"error": "failed to call cranberry OCR service", "detail": str(e)}
+    ocr_text = "テキストが検出されませんでした"
+    async with httpx.AsyncClient() as client:
+        try:
+            # 実際のファイル転送にはawait file.read()が必要です
+            files = {"file": (file.filename, await file.read(), file.content_type)}
+            # 外部OCRサービスのURL（環境別に自動切り替え）
+            # ローカル: http://127.0.0.1:8000/api/cranberry/ocr
+            # Cloud Run: https://actask-app-xxx.asia-northeast1.run.app/api/cranberry/ocr
+            ocr_url = f"{API_BASE_URL}/api/cranberry/ocr"
+            print(f"🔄 OCR リクエスト送信: {ocr_url}")
+            resp = await client.post(ocr_url, files=files)
+            resp.raise_for_status()
+            data = resp.json()
+            ocr_text = data.get("text", "テキストが検出されませんでした")
+        except Exception as e:
+            # OCRサービスへの接続/実行失敗
+            return {"error": "failed to call cranberry OCR service", "detail": str(e)}
 
     # --- 日時と予定の抽出 ---
     # 外部で定義された parse_datetime_from_ocr を呼び出す
@@ -181,15 +191,15 @@ async def call_cranberry(file: UploadFile = File(...)):
         cal_status = "skipped (Calendar service not initialized)"
 
     # # --- LINE送信（作成されたイベントIDも通知） ---
-    # await send_line_message_to_user(
-    #     f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
-    # )
+    await send_line_message_to_user(
+        f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
+    )
 
-    # return {
-    #     "cranberry_ocr_text": ocr_text,
-    #     "parsed_summary": summary,
-    #     "start_time": start_time_str,
-    #     "end_time": end_time_str,
-    #     "calendar_status": cal_status,
-    #     "event_id": event_id
-    # }
+    return {
+        "cranberry_ocr_text": ocr_text,
+        "parsed_summary": summary,
+        "start_time": start_time_str,
+        "end_time": end_time_str,
+        "calendar_status": cal_status,
+        "event_id": event_id
+    }
