@@ -20,6 +20,12 @@ LINE_USER_ID = os.getenv("LINE_USER_ID")
 GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # Dockerマウント済みJSON
 
+# 予備: 環境変数未設定でもコンテナ内の credentials フォルダを使う
+_default_creds = Path(__file__).parent / "credentials" / "actask-app-40b0576cfbd3.json"
+if not GOOGLE_CREDENTIALS_FILE and _default_creds.exists():
+    GOOGLE_CREDENTIALS_FILE = str(_default_creds)
+    print(f"ℹ️ GOOGLE_APPLICATION_CREDENTIALS auto-set: {GOOGLE_CREDENTIALS_FILE}")
+
 # === API ベース URL（環境別） ===
 # ローカル（docker-compose）: http://127.0.0.1:8000
 # Cloud Run: https://actask-app-xxx.asia-northeast1.run.app（自動で正しい origin を使用）
