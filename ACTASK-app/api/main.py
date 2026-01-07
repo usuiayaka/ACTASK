@@ -26,6 +26,11 @@ if not GOOGLE_CREDENTIALS_FILE and _default_creds.exists():
     GOOGLE_CREDENTIALS_FILE = str(_default_creds)
     print(f"ℹ️ GOOGLE_APPLICATION_CREDENTIALS auto-set: {GOOGLE_CREDENTIALS_FILE}")
 
+# カレンダーIDが未設定ならデフォルト値を入れて通知
+if not GOOGLE_CALENDAR_ID:
+    GOOGLE_CALENDAR_ID = "ususirosaika2@gmail.com"
+    print("ℹ️ GOOGLE_CALENDAR_ID auto-set to default ususirosaika2@gmail.com")
+
 # === API ベース URL（環境別） ===
 # ローカル（docker-compose）: http://127.0.0.1:8000
 # Cloud Run: https://actask-app-xxx.asia-northeast1.run.app（自動で正しい origin を使用）
@@ -64,6 +69,7 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 calendar_service = None
 
 try:
+    print(f"🔍 GOOGLE_APPLICATION_CREDENTIALS={GOOGLE_CREDENTIALS_FILE} (exists={os.path.exists(GOOGLE_CREDENTIALS_FILE) if GOOGLE_CREDENTIALS_FILE else 'None'})")
     if GOOGLE_CREDENTIALS_FILE and os.path.exists(GOOGLE_CREDENTIALS_FILE):
         credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, scopes=SCOPES)
         calendar_service = build('calendar', 'v3', credentials=credentials)
@@ -167,10 +173,16 @@ async def call_cranberry(file: UploadFile = File(...)):
 
     # --- Googleカレンダー登録（非同期に変換し、エラーを捕捉） ---
     cal_status = "pending"
+    cal_error = None
     event_id = None
     
-    # 外部で定義された calendar_service が正しく初期化されているか確認
-    if calendar_service:
+    if not calendar_service:
+        cal_status = "skipped (Calendar service not initialized)"
+        cal_error = "calendar_service_not_initialized"
+    elif not GOOGLE_CALENDAR_ID:
+        cal_status = "skipped (Calendar ID not configured)"
+        cal_error = "calendar_id_missing"
+    else:
         try:
             # 同期処理であるadd_event_to_calendarをasyncio.to_threadで別スレッドで実行
             event = await asyncio.to_thread(
@@ -185,17 +197,8 @@ async def call_cranberry(file: UploadFile = File(...)):
         except Exception as e:
             # APIエラー（権限不足など）や実行時エラー
             cal_status = "failed"
+            cal_error = str(e)
             print(f"❌ カレンダー登録失敗: {e}")
-            # エラーが発生したことをクライアントに詳細に返す
-            return {
-                "error": "Calendar registration failed (API/Permission Error)", 
-                "detail": str(e),
-                "ocr_summary": summary,
-                "start_time": start_time_str,
-            }
-    else:
-        # サーバー起動時にカレンダー認証が失敗していた場合
-        cal_status = "skipped (Calendar service not initialized)"
 
     # # --- LINE送信（作成されたイベントIDも通知） ---
     # if event_id:
@@ -213,5 +216,6 @@ async def call_cranberry(file: UploadFile = File(...)):
         "start_time": start_time_str,
         "end_time": end_time_str,
         "calendar_status": cal_status,
+        "calendar_error": cal_error,
         "event_id": event_id
     }
