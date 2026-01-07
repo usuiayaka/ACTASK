@@ -34,7 +34,7 @@ if not GOOGLE_CALENDAR_ID:
 # === API ベース URL（環境別） ===
 # ローカル（docker-compose）: http://127.0.0.1:8000
 # Cloud Run: https://actask-app-xxx.asia-northeast1.run.app（自動で正しい origin を使用）
-API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")  # デフォルトはローカル
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")  # デフォルトはローカル、末尾スラッシュを削除
 print(f"📡 API ベース URL: {API_BASE_URL}")
 
 # === FastAPI設定 ===
