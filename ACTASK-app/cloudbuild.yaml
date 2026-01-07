@@ -35,7 +35,7 @@ steps:
       - "--timeout=3600"
       - "--memory=512Mi"
       - "--cpu=1"
-      - "--set-env-vars=PORT=8080,API_BASE_URL=https://$_SERVICE_NAME-764158189667.asia-northeast1.run.app,GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/actask-app-40b0576cfbd3.json,GOOGLE_CALENDAR_ID=ususirosaika2@gmail.com"
+      - "--set-env-vars=PORT=8080"
     id: "deploy-cloud-run"
     waitFor: ["push-image"]
     timeout: "900s"
