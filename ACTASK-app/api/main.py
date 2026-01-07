@@ -17,6 +17,7 @@ from google.oauth2.service_account import Credentials
 # === 環境変数読み込み ===
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
+GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # Dockerマウント済みJSON
 
 # === API ベース URL（環境別） ===
@@ -96,7 +97,7 @@ def add_event_to_calendar(summary: str, start_time: str, end_time: str):
         'start': {'dateTime': start_time, 'timeZone': 'Asia/Tokyo'},
         'end': {'dateTime': end_time, 'timeZone': 'Asia/Tokyo'},
     }
-    created_event = calendar_service.events().insert(calendarId='ususirosaika2@gmail.com', body=event).execute()
+    created_event = calendar_service.events().insert(calendarId=GOOGLE_CALENDAR_ID, body=event).execute()
     return created_event
 
 # === 日時抽出関数 (追加) ===
