@@ -9,14 +9,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential && \
     rm -rf /var/lib/apt/lists/*
 
-# API側のファイルをコピー
-# credentials フォルダを明示的にコピー
-COPY api/credentials/ /app/credentials/
+# API側の requirements をコピーしてインストール
 COPY api/requirements.txt /app/
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # API側のコードをコピー
 COPY api/ /app/
+
+# credentials フォルダを明示的にコピー（.dockerignore で除外される場合の対策）
+COPY api/credentials/ /app/credentials/
 
 # フロント側のファイルを static ディレクトリにコピー
 COPY front/ /app/static/
