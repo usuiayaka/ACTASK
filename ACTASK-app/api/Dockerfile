@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # API側のファイルをコピー
+# credentials フォルダを明示的にコピー
+COPY api/credentials/ /app/credentials/
 COPY api/requirements.txt /app/
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
