@@ -198,9 +198,14 @@ async def call_cranberry(file: UploadFile = File(...)):
         cal_status = "skipped (Calendar service not initialized)"
 
     # # --- LINE送信（作成されたイベントIDも通知） ---
-    await send_line_message_to_user(
-        f"OCR結果: {ocr_text}\nカレンダー登録: done\nEventID: {event['id']}"
-    )
+    if event_id:
+        await send_line_message_to_user(
+            f"OCR結果: {ocr_text}\nカレンダー登録: {cal_status}\nEventID: {event_id}"
+        )
+    else:
+        await send_line_message_to_user(
+            f"OCR結果: {ocr_text}\nカレンダー登録: {cal_status}"
+        )
 
     return {
         "cranberry_ocr_text": ocr_text,
