@@ -10,6 +10,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # API側のファイルをコピー
+<<<<<<< HEAD
+=======
+# credentials フォルダを明示的にコピー
+COPY api/credentials/ /app/credentials/
+>>>>>>> parent of f847e7c (Dockerファイルを修正)
 COPY api/requirements.txt /app/
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
