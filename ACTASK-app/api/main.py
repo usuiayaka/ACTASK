@@ -74,24 +74,24 @@ except Exception as e:
     calendar_service = None
 
 # === LINE送信関数 ===
-async def send_line_message_to_user(message: str):
-    """LINE公式アカウント（Messaging API）でユーザーにメッセージ送信"""
-    url = "https://api.line.me/v2/bot/message/push"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
-    }
-    data = {
-        "to": LINE_USER_ID,
-        "messages": [{"type": "text", "text": message}],
-    }
+# async def send_line_message_to_user(message: str):
+#     """LINE公式アカウント（Messaging API）でユーザーにメッセージ送信"""
+#     url = "https://api.line.me/v2/bot/message/push"
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}",
+#     }
+#     data = {
+#         "to": LINE_USER_ID,
+#         "messages": [{"type": "text", "text": message}],
+#     }
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, headers=headers, json=data)
-        if resp.status_code != 200:
-            print("❌ LINE送信失敗:", resp.text)
-        else:
-            print("✅ LINE送信成功")
+#     async with httpx.AsyncClient() as client:
+#         resp = await client.post(url, headers=headers, json=data)
+#         if resp.status_code != 200:
+#             print("❌ LINE送信失敗:", resp.text)
+#         else:
+#             print("✅ LINE送信成功")
 
 # === Googleカレンダー登録関数 ===
 def add_event_to_calendar(summary: str, start_time: str, end_time: str):
@@ -198,14 +198,14 @@ async def call_cranberry(file: UploadFile = File(...)):
         cal_status = "skipped (Calendar service not initialized)"
 
     # # --- LINE送信（作成されたイベントIDも通知） ---
-    if event_id:
-        await send_line_message_to_user(
-            f"OCR結果: {ocr_text}\nカレンダー登録: {cal_status}\nEventID: {event_id}"
-        )
-    else:
-        await send_line_message_to_user(
-            f"OCR結果: {ocr_text}\nカレンダー登録: {cal_status}"
-        )
+    # if event_id:
+    #     await send_line_message_to_user(
+    #         f"OCR結果: {ocr_text}\nカレンダー登録: {cal_status}\nEventID: {event_id}"
+    #     )
+    # else:
+    #     await send_line_message_to_user(
+    #         f"OCR結果: {ocr_text}\nカレンダー登録: {cal_status}"
+    #     )
 
     return {
         "cranberry_ocr_text": ocr_text,
