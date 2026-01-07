@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
     container_name: vision-api-app
     ports:
       - "8000:8000"
@@ -10,5 +12,6 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/actask-app-a125d7e12c21.json
     volumes:
       - .:/app
+      - ../front:/app/static:ro
       - ./credentials:/app/credentials:ro
     command: uvicorn main:app --host 0.0.0.0 --port 8000
