@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 import httpx
 from cranberry import router as cranberry_router
+from cranberry import vision_document_ocr   # ★ 追加（関数直接呼び出し）
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -12,30 +13,17 @@ from pathlib import Path
 
 # Google Calendar
 from googleapiclient.discovery import build
-from google.oauth2.service_account import Credentials
+from google.auth import default   # ★ 追加（Cloud Run 自動認証）
 
 # === 環境変数読み込み ===
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_ID = os.getenv("LINE_USER_ID")
 GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
-GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # Dockerマウント済みJSON
-
-# 予備: 環境変数未設定でもコンテナ内の credentials フォルダを使う
-_default_creds = Path(__file__).parent / "credentials" / "actask-app-40b0576cfbd3.json"
-if not GOOGLE_CREDENTIALS_FILE and _default_creds.exists():
-    GOOGLE_CREDENTIALS_FILE = str(_default_creds)
-    print(f"ℹ️ GOOGLE_APPLICATION_CREDENTIALS auto-set: {GOOGLE_CREDENTIALS_FILE}")
 
 # カレンダーIDが未設定ならデフォルト値を入れて通知
 if not GOOGLE_CALENDAR_ID:
     GOOGLE_CALENDAR_ID = "ususirosaika2@gmail.com"
     print("ℹ️ GOOGLE_CALENDAR_ID auto-set to default ususirosaika2@gmail.com")
-
-# === API ベース URL（環境別） ===
-# ローカル（docker-compose）: http://127.0.0.1:8000
-# Cloud Run: https://actask-app-xxx.asia-northeast1.run.app（自動で正しい origin を使用）
-API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")  # デフォルトはローカル、末尾スラッシュを削除
-print(f"📡 API ベース URL: {API_BASE_URL}")
 
 # === FastAPI設定 ===
 app = FastAPI(title="ACTASK Main API")
@@ -69,12 +57,9 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 calendar_service = None
 
 try:
-    print(f"🔍 GOOGLE_APPLICATION_CREDENTIALS={GOOGLE_CREDENTIALS_FILE} (exists={os.path.exists(GOOGLE_CREDENTIALS_FILE) if GOOGLE_CREDENTIALS_FILE else 'None'})")
-    if GOOGLE_CREDENTIALS_FILE and os.path.exists(GOOGLE_CREDENTIALS_FILE):
-        credentials = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_FILE, scopes=SCOPES)
-        calendar_service = build('calendar', 'v3', credentials=credentials)
-    else:
-        print("⚠️ Google Calendar credentials file not found or not configured")
+    credentials, _ = default(scopes=SCOPES)
+    calendar_service = build('calendar', 'v3', credentials=credentials)
+    print("✅ Google Calendar service initialized (Cloud Run auth)")
 except Exception as e:
     print(f"⚠️ Failed to initialize Google Calendar service: {e}")
     calendar_service = None
@@ -109,13 +94,15 @@ def add_event_to_calendar(summary: str, start_time: str, end_time: str):
         'start': {'dateTime': start_time, 'timeZone': 'Asia/Tokyo'},
         'end': {'dateTime': end_time, 'timeZone': 'Asia/Tokyo'},
     }
-    created_event = calendar_service.events().insert(calendarId=GOOGLE_CALENDAR_ID, body=event).execute()
+    created_event = calendar_service.events().insert(
+        calendarId=primary,
+        body=event
+    ).execute()
     return created_event
 
 # === 日時抽出関数 (追加) ===
 def parse_datetime_from_ocr(text: str):
     """OCRテキストから「年/月/日 時刻〜時刻」のパターンを抽出"""
-    # 例: 2025年11月3日 12:00~13:00
     pattern = re.compile(
         r'(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})[~〜-](\d{1,2}):(\d{2})'
     )
@@ -123,21 +110,11 @@ def parse_datetime_from_ocr(text: str):
 
     if match:
         year, month, day, start_hour, start_minute, end_hour, end_minute = map(int, match.groups())
-
-        # 開始日時を生成 (ISO 8601形式の文字列)
         start_dt = datetime(year, month, day, start_hour, start_minute)
-        start_time_str = start_dt.isoformat()
-
-        # 終了日時を生成
         end_dt = datetime(year, month, day, end_hour, end_minute)
-        end_time_str = end_dt.isoformat()
-
-        # 日付と時刻の文字列を削除し、残りを予定のサマリーとする
         summary = pattern.sub('', text).strip()
-        
-        return summary, start_time_str, end_time_str
-    
-    # パターンが見つからない場合、デフォルト値（現在時刻から1時間）を返す
+        return summary, start_dt.isoformat(), end_dt.isoformat()
+
     start = datetime.now()
     end = start + timedelta(hours=1)
     return text.strip(), start.isoformat(), end.isoformat()
@@ -148,34 +125,24 @@ async def call_cranberry(file: UploadFile = File(...)):
     """
     画像を Cranberry OCR API に転送し、OCR結果をLINEとGoogleカレンダーに登録
     """
-    # --- OCR呼び出し ---
-    ocr_text = "テキストが検出されませんでした"
-    async with httpx.AsyncClient() as client:
-        try:
-            # 実際のファイル転送にはawait file.read()が必要です
-            files = {"file": (file.filename, await file.read(), file.content_type)}
-            # 外部OCRサービスのURL（環境別に自動切り替え）
-            # ローカル: http://127.0.0.1:8000/api/cranberry/ocr
-            # Cloud Run: https://actask-app-xxx.asia-northeast1.run.app/api/cranberry/ocr
-            ocr_url = f"{API_BASE_URL}/api/cranberry/ocr"
-            print(f"🔄 OCR リクエスト送信: {ocr_url}")
-            resp = await client.post(ocr_url, files=files)
-            resp.raise_for_status()
-            data = resp.json()
-            ocr_text = data.get("text", "テキストが検出されませんでした")
-        except Exception as e:
-            # OCRサービスへの接続/実行失敗
-            return {"error": "failed to call cranberry OCR service", "detail": str(e)}
+    try:
+        image_bytes = await file.read()
+        ocr_text = await asyncio.to_thread(
+            vision_document_ocr,
+            image_bytes
+        )
+    except Exception as e:
+        return {
+            "error": "failed to execute cranberry OCR",
+            "detail": str(e)
+        }
 
-    # --- 日時と予定の抽出 ---
-    # 外部で定義された parse_datetime_from_ocr を呼び出す
     summary, start_time_str, end_time_str = parse_datetime_from_ocr(ocr_text)
 
-    # --- Googleカレンダー登録（非同期に変換し、エラーを捕捉） ---
     cal_status = "pending"
     cal_error = None
     event_id = None
-    
+
     if not calendar_service:
         cal_status = "skipped (Calendar service not initialized)"
         cal_error = "calendar_service_not_initialized"
@@ -184,18 +151,16 @@ async def call_cranberry(file: UploadFile = File(...)):
         cal_error = "calendar_id_missing"
     else:
         try:
-            # 同期処理であるadd_event_to_calendarをasyncio.to_threadで別スレッドで実行
             event = await asyncio.to_thread(
-                add_event_to_calendar, 
-                summary, 
-                start_time_str, 
+                add_event_to_calendar,
+                summary,
+                start_time_str,
                 end_time_str
             )
             print(f"✅ カレンダー登録完了 Summary: '{summary}', EventID: {event['id']}")
             cal_status = "done"
             event_id = event['id']
         except Exception as e:
-            # APIエラー（権限不足など）や実行時エラー
             cal_status = "failed"
             cal_error = str(e)
             print(f"❌ カレンダー登録失敗: {e}")
