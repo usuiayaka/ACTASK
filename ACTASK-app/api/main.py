@@ -95,26 +95,51 @@ def add_event_to_calendar(summary: str, start_time: str, end_time: str):
         'end': {'dateTime': end_time, 'timeZone': 'Asia/Tokyo'},
     }
     created_event = calendar_service.events().insert(
-        calendarId=primary,
+        calendarId=GOOGLE_CALENDAR_ID,
         body=event
     ).execute()
     return created_event
 
 # === 日時抽出関数 (追加) ===
 def parse_datetime_from_ocr(text: str):
-    """OCRテキストから「年/月/日 時刻〜時刻」のパターンを抽出"""
-    pattern = re.compile(
-        r'(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})[~〜-](\d{1,2}):(\d{2})'
+    """OCRテキストからパターンを抽出"""
+    """パターン1: スラッシュ区切り + 終了時刻あり (例: 2026/2/12 17:00~18:00)"""
+    pattern1 = re.compile(
+        r'(\d{4})[/／](\d{1,2})[/／](\d{1,2})\s+(\d{1,2}):(\d{2})\s*[~〜～-]\s*(\d{1,2}):(\d{2})'
     )
-    match = pattern.search(text)
-
+    match = pattern1.search(text)
     if match:
         year, month, day, start_hour, start_minute, end_hour, end_minute = map(int, match.groups())
         start_dt = datetime(year, month, day, start_hour, start_minute)
         end_dt = datetime(year, month, day, end_hour, end_minute)
-        summary = pattern.sub('', text).strip()
+        summary = pattern1.sub('', text).strip()
         return summary, start_dt.isoformat(), end_dt.isoformat()
 
+    """パターン2: スラッシュ区切り + 開始時刻のみ (例: 2026/2/12 17:00)"""
+    pattern2 = re.compile(
+        r'(\d{4})[/／](\d{1,2})[/／](\d{1,2})\s+(\d{1,2}):(\d{2})'
+    )
+    match = pattern2.search(text)
+    if match:
+        year, month, day, start_hour, start_minute = map(int, match.groups())
+        start_dt = datetime(year, month, day, start_hour, start_minute)
+        end_dt = start_dt + timedelta(hours=1)
+        summary = pattern2.sub('', text).strip()
+        return summary, start_dt.isoformat(), end_dt.isoformat()
+
+    """パターン3: 漢字区切り (例: 2026年2月12日 17:00~18:00)"""
+    pattern3 = re.compile(
+        r'(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2}):(\d{2})\s*[~〜-]\s*(\d{1,2}):(\d{2})'
+    )
+    match = pattern3.search(text)
+    if match:
+        year, month, day, start_hour, start_minute, end_hour, end_minute = map(int, match.groups())
+        start_dt = datetime(year, month, day, start_hour, start_minute)
+        end_dt = datetime(year, month, day, end_hour, end_minute)
+        summary = pattern3.sub('', text).strip()
+        return summary, start_dt.isoformat(), end_dt.isoformat()
+
+    # マッチしない場合は現在時刻を使用
     start = datetime.now()
     end = start + timedelta(hours=1)
     return text.strip(), start.isoformat(), end.isoformat()
