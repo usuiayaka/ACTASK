@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ACTASK検知処理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/main.js?v=1" defer></script>
+  </head>
+  <body>
+    <h1>ACTASK検知処理</h1>
+
+    <div class="main-container max-w-6xl mx-auto">
+      <div class="video-section shadow-2xl">
+        <div id="videoContainer">
+          <video id="cameraVideo" autoplay muted playsinline></video>
+          <canvas id="overlayCanvas"></canvas>
+          <div
+            id="videoPlaceholder"
+            class="absolute inset-0 flex items-center justify-center text-gray-500 font-semibold text-lg"
+          >
+            カメラを起動してください
+          </div>
+        </div>
+      </div>
+
+      <div class="log-section">
+        <h2 class="text-xl font-semibold">検出ログ</h2>
+        <div id="logArea"></div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="startBtn" class="btn blue shadow-lg disabled:opacity-50">
+        検出を開始する
+      </button>
+      <button
+        id="stopBtn"
+        class="btn red shadow-lg disabled:opacity-50"
+        disabled
+      >
+        検出を終了する
+      </button>
+    </div>
+
+    <link rel="stylesheet" href="/static/index.css?v=1" />
+    <!-- cache-bust: update ?v value when changing assets -->
+  </body>
+</html>

@@ -1,0 +1,138 @@
+body {
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: #f8fafc;
+}
+
+h1 {
+  text-align: center;
+  font-size: 2em;
+  margin-bottom: 20px;
+}
+
+.main-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 20px;
+}
+
+.video-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* === ズームとクリッピングを制御するコンテナ === */
+#videoContainer {
+  position: relative;
+  width: 100%;
+  /* 映像のアスペクト比に合わせて設定するのが理想。例: 16 / 9 */
+  aspect-ratio: 16 / 9;
+  /* ズームによって枠外に出た部分を非表示（クリッピング）にする */
+  overflow: hidden;
+  border-radius: 10px;
+  background: #000;
+}
+
+/* === 映像とCanvasをまとめてズームする設定 === */
+#cameraVideo,
+#overlayCanvas,
+#videoPlaceholder {
+  /* 親コンテナ (#videoContainer) の枠内にぴったり収める */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  /* 映像と描画をまとめて 1.5倍にズームアップ */
+  transform: scale(1.05);
+  /* 拡大の中心を中央に設定することで、中央部分が表示される */
+  transform-origin: center center;
+}
+
+/* Canvasは最前面に配置し、マウスイベントを透過させる */
+#overlayCanvas {
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* videoはCanvasの下に配置 */
+#cameraVideo {
+  z-index: 1;
+  /* ズーム表示時に全体が覆われるように cover を推奨 */
+  object-fit: cover;
+}
+
+.log-section {
+  width: 35%;
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.log-section h2 {
+  margin-top: 0;
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+#logArea {
+  width: auto;
+  height: 320px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 10px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-y: scroll;
+}
+
+.buttons {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn {
+  border: none;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 25px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.btn.blue {
+  background-color: #3498db;
+}
+.btn.red {
+  background-color: #e74c3c;
+}
+.btn:hover {
+  opacity: 0.8;
+}
+
+/* レスポンシブ対応 (lgブレークポイント未満): 縦並びにする */
+@media (max-width: 1024px) {
+  .main-container {
+    flex-direction: column;
+    padding: 0 10px;
+  }
+  .log-section {
+    width: 100%;
+  }
+  body {
+    padding: 10px;
+  }
+}

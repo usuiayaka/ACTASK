@@ -1,0 +1,7 @@
+diff a/ACTASK-app/api/Dockerfile b/ACTASK-app/api/Dockerfile	(rejected hunks)
+@@ -15,4 +15,4 @@
+ COPY . .
+ 
+ # Uvicorn を使って main.app を起動。--reload は開発時のみ使う。
+-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8080}"]
++CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
