@@ -2,8 +2,11 @@
 // ローカル・Cloud Run 両方で機能するように相対パスを使用
 const API_URL = "/api/call-cranberry";
 const COORDS_API_URL = "/api/cranberry/mask_coords"; // 追加: 座標取得API
+const REGISTER_SCHEDULES_URL = "/api/register-schedules"; // 追加: カレンダー登録API
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
+const testCheckBtn = document.getElementById("testCheckBtn");
+const registerCalendarBtn = document.getElementById("registerCalendarBtn"); // 追加: カレンダー登録ボタン
 const video = document.getElementById("cameraVideo");
 const logArea = document.getElementById("logArea");
 const overlayCanvas = document.getElementById("overlayCanvas");
@@ -11,6 +14,8 @@ const videoPlaceholder = document.getElementById("videoPlaceholder");
 let stream = null;
 let intervalId = null; // 10秒ごとの送信制御用
 let maskCoordinates = []; // 追加: バックエンドから取得した座標を保持
+let isTestMode = false; // テストモードの状態
+let latestCells = []; // 追加: 最新のOCR結果(cells)を保持
 
 // === 新機能: カレンダー座標の取得 ===
 async function fetchMaskCoordinates() {
@@ -72,6 +77,8 @@ function drawMasks() {
 
 // 検出を開始する
 async function startDetection() {
+  isTestMode = false; // 通常モード
+
   if (!stream) {
     appendLog("🔵 カメラを起動中です...");
     try {
@@ -115,12 +122,11 @@ async function startDetection() {
   appendLog("🔵 検出サイクルを開始しました（10秒ごとに送信）");
 
   startBtn.disabled = true;
+  testCheckBtn.disabled = true;
   stopBtn.disabled = false;
 }
 
-// カメラ停止 (stopDetection 関数は変更なし)
-stopBtn.addEventListener("click", stopDetection);
-
+// カメラ停止
 function stopDetection() {
   if (intervalId) {
     clearInterval(intervalId);
@@ -135,12 +141,67 @@ function stopDetection() {
     videoPlaceholder.style.display = "flex";
   }
 
+  isTestMode = false;
   startBtn.disabled = false;
+  testCheckBtn.disabled = false;
   stopBtn.disabled = true;
+
+  // Canvasをクリア
+  const ctx = overlayCanvas.getContext("2d");
+  ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+}
+
+// テストチェックモード: カメラを起動して赤枠座標を表示のみ
+async function startTestMode() {
+  isTestMode = true; // テストモード有効化
+
+  if (!stream) {
+    appendLog("🟢 テストモード: カメラを起動中です...");
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "environment",
+        },
+      });
+      video.srcObject = stream;
+      videoPlaceholder.style.display = "none";
+      video.play();
+
+      await new Promise((resolve) => (video.onloadedmetadata = resolve));
+
+      overlayCanvas.width = video.videoWidth;
+      overlayCanvas.height = video.videoHeight;
+
+      await fetchMaskCoordinates();
+
+      // テストモードではrequestAnimationFrameで常に赤枠を描画
+      function animateTest() {
+        if (isTestMode && stream) {
+          drawMasks();
+          requestAnimationFrame(animateTest);
+        }
+      }
+      animateTest();
+    } catch (err) {
+      appendLog("❌ カメラのアクセスに失敗しました: " + err.name);
+      testCheckBtn.disabled = false;
+      isTestMode = false;
+      return;
+    }
+  }
+
+  appendLog(
+    "🟢 テストモード開始: 赤枠座標を表示中です。座標確認後は「検出を終了する」を押してください。"
+  );
+  testCheckBtn.disabled = true;
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
 }
 
 // startBtn.addEventListener("click", async () => { ... }) の代わりに、上記 startDetection 関数を使用する
 startBtn.addEventListener("click", startDetection);
+stopBtn.addEventListener("click", stopDetection);
+testCheckBtn.addEventListener("click", startTestMode);
 
 // 画像をキャプチャしてAPIへ送信 (captureAndSend 関数は変更なし)
 async function captureAndSend() {
@@ -163,7 +224,11 @@ async function captureAndSend() {
   if (!blob) {
     return appendLog("❌ 画像キャプチャに失敗しました (Blob取得エラー)。");
   }
-  drawMasks();
+
+  // 通常モードでは赤枠を表示しない（Canvasをクリア）
+  if (!isTestMode) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
 
   const formData = new FormData();
   formData.append("file", blob, "capture.jpg");
@@ -188,6 +253,22 @@ async function captureAndSend() {
 - 登録時間: ${new Date(result.start_time).toLocaleString("ja-JP")}
 - ステータス: ${result.calendar_status} (ID: ${result.event_id || "N/A"})
 - OCR: ${result.cranberry_ocr_text.substring(0, 30).replace(/\n/g, " ")}...`);
+
+    // 追加: マス別 schedule をブラウザコンソールで確認
+    if (result.cells) {
+      console.log("[cells]", result.cells);
+      const filled = result.cells.filter(
+        (c) => c.schedule && c.schedule.trim()
+      );
+      if (filled.length) {
+        appendLog(
+          `📅 マスに登録: ${filled
+            .map((c) => `${c.day}:${c.schedule}`)
+            .slice(0, 5)
+            .join(" / ")}${filled.length > 5 ? " ..." : ""}`
+        );
+      }
+    }
   } catch (err) {
     appendLog("⚠️ ネットワークエラー: " + err.message);
   }

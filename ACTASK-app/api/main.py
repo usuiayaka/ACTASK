@@ -1,7 +1,11 @@
 from fastapi import FastAPI, UploadFile, File
 import httpx
 from cranberry import router as cranberry_router
-from cranberry import vision_document_ocr   # ★ 追加（関数直接呼び出し）
+from cranberry import (
+    vision_document_ocr,
+    vision_document_ocr_with_boxes,
+    map_text_to_calendar_cells,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -10,6 +14,9 @@ import asyncio
 from datetime import datetime, timedelta
 import re
 from pathlib import Path
+import cv2
+import numpy as np
+import sys
 
 # Google Calendar
 from googleapiclient.discovery import build
@@ -152,10 +159,51 @@ async def call_cranberry(file: UploadFile = File(...)):
     """
     try:
         image_bytes = await file.read()
-        ocr_text = await asyncio.to_thread(
-            vision_document_ocr,
+        # 画像をデコードしてサイズを取得（マス当て込みに使用）
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return {"error": "invalid image"}
+
+        # OCR全文＋文字ボックスを取得
+        ocr_text, annotations = await asyncio.to_thread(
+            vision_document_ocr_with_boxes,
             image_bytes
         )
+
+        # デバッグ：画像サイズと正規化座標情報を出力
+        print(f"\n[IMAGE INFO] Image shape: {img.shape} (H x W x C)", flush=True)
+        h, w = img.shape[:2]
+        
+        # OCR結果の生座標をコンソールに表示
+        print("\n=== RAW OCR COORDINATES (with normalized) ===", flush=True)
+        for i, annotation in enumerate(annotations):
+            vertices = [(v.x, v.y) for v in annotation.bounding_poly.vertices]
+            # 中心座標を計算
+            if annotation.bounding_poly.vertices:
+                xs = [v.x for v in annotation.bounding_poly.vertices if v.x is not None]
+                ys = [v.y for v in annotation.bounding_poly.vertices if v.y is not None]
+                if xs and ys:
+                    cx_pixel = sum(xs) / len(xs)
+                    cy_pixel = sum(ys) / len(ys)
+                    cx_norm = cx_pixel / w
+                    cy_norm = cy_pixel / h
+                    print(f"[{i}] Text: '{annotation.description}' | Pixel: {vertices} | Center (px): ({cx_pixel:.1f}, {cy_pixel:.1f}) | Center (norm): ({cx_norm:.3f}, {cy_norm:.3f})", flush=True)
+        
+        sys.stdout.flush()
+
+        # 文字を各マスの schedule に割い当て
+        cells = map_text_to_calendar_cells(annotations, img.shape)
+        
+        # マッピング後の座標情報を表示
+        print("\n=== MAPPED TO CALENDAR CELLS ===", flush=True)
+        for cell in cells:
+            day = cell.get('day', '?')
+            box = cell.get('box', [])
+            schedule = cell.get('schedule', '')
+            if schedule:  # スケジュールがある場合のみ表示
+                print(f"Day: {day} | Box (norm): {box} | Schedule: '{schedule}'", flush=True)
+        sys.stdout.flush()
     except Exception as e:
         return {
             "error": "failed to execute cranberry OCR",
@@ -207,5 +255,94 @@ async def call_cranberry(file: UploadFile = File(...)):
         "end_time": end_time_str,
         "calendar_status": cal_status,
         "calendar_error": cal_error,
-        "event_id": event_id
+        "event_id": event_id,
+        "cells": cells
+    }
+
+# === カレンダー一括登録エンドポイント ===
+@app.post("/api/register-schedules")
+async def register_schedules_to_calendar(cells: list):
+    """
+    cells 配列を受け取り、各予定をGoogleカレンダーに登録する
+    cells = [
+        {day: '1', schedule: '買い物をする', month: 1},
+        {day: '5', schedule: ': 00-21 : 00 索', month: 1},
+        ...
+    ]
+    """
+    if not calendar_service:
+        return {
+            "status": "error",
+            "message": "Calendar service not initialized"
+        }
+    
+    if not GOOGLE_CALENDAR_ID:
+        return {
+            "status": "error",
+            "message": "Calendar ID not configured"
+        }
+    
+    registered_events = []
+    failed_events = []
+    
+    for cell in cells:
+        day = cell.get('day', '')
+        schedule = cell.get('schedule', '').strip()
+        month = cell.get('month', 1)
+        
+        # スケジュールが空または曜日の場合はスキップ
+        if not schedule or day in ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']:
+            continue
+        
+        # 日付が数字でない場合はスキップ
+        try:
+            day_int = int(day)
+        except (ValueError, TypeError):
+            continue
+        
+        # デフォルトの年は2026年
+        year = 2026
+        
+        # 日付を構築
+        try:
+            # 開始日時・終了日時を設定（終日イベントとして登録）
+            start_date = datetime(year, month, day_int)
+            end_date = start_date + timedelta(days=1)
+            
+            # Googleカレンダーに登録
+            event = {
+                'summary': schedule,
+                'start': {'date': start_date.strftime('%Y-%m-%d'), 'timeZone': 'Asia/Tokyo'},
+                'end': {'date': end_date.strftime('%Y-%m-%d'), 'timeZone': 'Asia/Tokyo'},
+            }
+            
+            created_event = await asyncio.to_thread(
+                lambda: calendar_service.events().insert(
+                    calendarId=GOOGLE_CALENDAR_ID,
+                    body=event
+                ).execute()
+            )
+            
+            registered_events.append({
+                'date': f"{year}-{month}-{day_int}",
+                'schedule': schedule,
+                'event_id': created_event['id']
+            })
+            
+            print(f"✅ カレンダー登録: {year}/{month}/{day_int} - {schedule}")
+            
+        except Exception as e:
+            failed_events.append({
+                'date': f"{year}-{month}-{day_int}",
+                'schedule': schedule,
+                'error': str(e)
+            })
+            print(f"❌ カレンダー登録失敗: {year}/{month}/{day_int} - {schedule}: {e}")
+    
+    return {
+        "status": "completed",
+        "registered": len(registered_events),
+        "failed": len(failed_events),
+        "registered_events": registered_events,
+        "failed_events": failed_events
     }
